@@ -61,6 +61,7 @@ int login_xfyun(void)
 	pthread_mutex_lock(&(voice.mutex_voice_params)); //申请锁
 	memset(voice.output_voice_params, 0, sizeof(voice.output_voice_params));
 	strcpy(voice.output_voice_params, "voice_name = xiaoyan, text_encoding = utf8, sample_rate = 16000, speed = 50, volume = 50, pitch = 50, rdn = 2");
+	//strcpy(voice.output_voice_params, "engine_type = local,voice_name=xiaoyan, text_encoding = UTF8, tts_res_path = fo|res/tts/xiaoyan.jet;fo|res/tts/common.jet, sample_rate = 16000, speed = 50, volume = 50, pitch = 50, rdn = 2");
 	pthread_mutex_unlock(&(voice.mutex_voice_params)); //释放锁
 	voice.voice_main_switch = SWITCH_ON;
 	INFO_MSG("voice设置启动模式：网络连接模式，语音识别系统启动.\n");
@@ -114,9 +115,11 @@ void voice_init(const char *xfyun_appid, const char *usb_audio_addr)
 		ERROR_MSG("voice初始化失败：设置启动模式错误！\n");
 		return;
 	}
-	
-	//voice.pcm_capture_handle  = pcm_setup(SND_PCM_STREAM_CAPTURE, voice.usb_audio_addr);
+#ifdef ARM_DEV
 	voice.pcm_capture_handle  = pcm_setup(SND_PCM_STREAM_CAPTURE, "plughw:1,0");
+#else
+	voice.pcm_capture_handle  = pcm_setup(SND_PCM_STREAM_CAPTURE, voice.usb_audio_addr);
+#endif
 	voice.pcm_playback_handle = pcm_setup(SND_PCM_STREAM_PLAYBACK, voice.usb_audio_addr);
 	
 	INFO_MSG("Voice Initial Success\n");
@@ -259,6 +262,9 @@ static int text_to_speech(const char* src_text)
 					else if (ret < 0)
 					{
 						ERROR_MSG("Error from writei: %s\n", snd_strerror(ret));
+						ERROR_MSG("Reset the pcm_playback_handle\n");
+						snd_pcm_close(voice.pcm_playback_handle);
+						voice.pcm_playback_handle = pcm_setup(SND_PCM_STREAM_PLAYBACK, voice.usb_audio_addr);
 					}
 				}
 				else
@@ -297,6 +303,9 @@ static int text_to_speech(const char* src_text)
 	}
 	free(buffer);
 	free(pcm_all);
+	
+
+	
 	return ret;
 }
 
@@ -734,9 +743,9 @@ static int voice_chat_and_control(void)
 			}
 			else
 			{
-				char ask_fifo[BUFFER_SIZE]={0};
-				snprintf( ask_fifo, sizeof( ask_fifo )-1, "ASK:%s\n",voice.question_text);
-				fifo_write(voice_control_fd ,ask_fifo, strlen(ask_fifo));
+				//char ask_fifo[BUFFER_SIZE]={0};
+				//snprintf( ask_fifo, sizeof( ask_fifo )-1, "ASK:%s\n",voice.question_text);
+				//fifo_write(voice_control_fd ,ask_fifo, strlen(ask_fifo));
 				
 				voice.state_machine = THINK_STATE;
 				fifo_write(voice_control_fd, "THINK_STATE\n" ,strlen("THINK_STATE\n"));
@@ -765,7 +774,7 @@ static int voice_chat_and_control(void)
 		
 		case SPEAK_STATE:
 		{
-			char ans_fifo[40960]={0};
+			char ans_fifo[163840]={0};
 			DEBUG_MSG("SPEAK_STATE\n");
 			if (voice.recongnition_switch == SWITCH_OFF || voice.sound_box_ongoing_flag < 0)
 			{
@@ -776,13 +785,21 @@ static int voice_chat_and_control(void)
 			{
 				break;
 			}
+			
+			//Send JSON data to FIFO
+			snprintf( ans_fifo, sizeof( ans_fifo )-1, "JSON:%s\n",voice.answer_jason);
+			fifo_write(voice_control_fd ,ans_fifo, strlen(ans_fifo));
+			
+			//Parser Alarm
+			alarm_parse(voice.answer_jason);
+			
 			//Parser Jason
 			voice.answer_text = ifly_get_contents(voice.answer_jason);
 
 			if( (strncmp(voice.answer_text,"Unknow error",12) == 0) || (strlen(voice.answer_text) == 0))
 			{
-				snprintf( ans_fifo, sizeof( ans_fifo )-1, "ANS:這個問題我無法回答\n");
-				fifo_write(voice_control_fd ,ans_fifo, strlen(ans_fifo));
+				//snprintf( ans_fifo, sizeof( ans_fifo )-1, "ANS:這個問題我無法回答\n");
+				//fifo_write(voice_control_fd ,ans_fifo, strlen(ans_fifo));
 				
 				//語音無法順利回覆解答
 				if (text_to_speech("這個問題我無法回答") < 0)
@@ -794,8 +811,8 @@ static int voice_chat_and_control(void)
 			else
 			{
 				INFO_MSG("Answer Text:%s(%d)\n", voice.answer_text,(int)strlen(voice.answer_text));
-				snprintf( ans_fifo, sizeof( ans_fifo )-1, "ANS:%s\n",voice.answer_text);
-				fifo_write(voice_control_fd ,ans_fifo, strlen(ans_fifo));
+				//snprintf( ans_fifo, sizeof( ans_fifo )-1, "ANS:%s\n",voice.answer_text);
+				//fifo_write(voice_control_fd ,ans_fifo, strlen(ans_fifo));
 				
 				//4、语音输出回复的内容！
 				if (text_to_speech(voice.answer_text) < 0)
