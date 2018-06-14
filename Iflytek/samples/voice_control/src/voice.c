@@ -702,6 +702,70 @@ void start_speech_awake(void)
 	pthread_attr_destroy(&attr); //销毁线程属性结构体
 }
 
+#define ALARM_FILE "alarm_time.txt"
+void alarm_write_to_file(char * alarm_string)
+{
+	FILE* fd = NULL;
+	fd = fopen(ALARM_FILE,"w");
+	INFO_MSG("%s\n", alarm_string);
+	fwrite (alarm_string , sizeof(char), strlen(alarm_string), fd);
+	fclose(fd);
+}
+
+void alarm_parse(const char *jason)
+{
+	//Check is "scheduleX" result
+	char alarm_jason[4096]={0};
+	char * pch;
+	char * datetime_str;
+	int count=0;
+	
+	strncpy(alarm_jason, jason, sizeof(alarm_jason)-1);
+	
+	pch = strstr((char *)alarm_jason, "scheduleX");
+	if(pch != NULL)
+	{
+		INFO_MSG("This is alarm result\n");
+		
+		pch = strstr((char*)alarm_jason, "CREATE");
+		if(pch != NULL)
+		{
+			INFO_MSG("Create Alarm\n");
+			pch = strstr((char *)alarm_jason, "\\\"datetime\\\"");
+			if(pch == NULL)
+			{
+				INFO_MSG("Cannot fine datetime\n");
+			}
+			else
+			{
+				//Save the datatime
+				datetime_str = strtok (pch," \\\"");
+				while(count < 3)
+				{
+					INFO_MSG("%s\n",datetime_str);
+					if(count == 2)
+					{
+						alarm_write_to_file(datetime_str);
+					}
+					datetime_str = strtok (NULL," \\\"");
+					count++;
+				}
+			}
+		}
+		
+		pch = strstr((char *)alarm_jason, "CANCEL");
+		if(pch != NULL)
+		{
+			unlink(ALARM_FILE);
+			INFO_MSG("Cancel Alarm\n");
+		}
+	}
+	else
+	{
+		INFO_MSG("This is not alarm result\n");
+	}
+}
+
 /*
  * 功能：语音控制、语音聊天
  * 参数：无
