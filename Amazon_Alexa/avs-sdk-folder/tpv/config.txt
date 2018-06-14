@@ -1,0 +1,5 @@
+CLIENT_SECRET="03f8f37f7e079194cba453d4ebb1c597f212aca27e9dede991e57a25f1c8d598"
+#NOTE: The Device Serial Number can be any unique number
+DEVICE_SERIAL_NUMBER="123456"
+CLIENT_ID="amzn1.application-oa2-client.c12262f93fa84f4382f7b43f89954ced"
+PRODUCT_ID="justin_avs"

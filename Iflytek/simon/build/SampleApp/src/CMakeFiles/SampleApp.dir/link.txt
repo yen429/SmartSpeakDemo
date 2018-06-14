@@ -1,0 +1,1 @@
+/usr/bin/c++      CMakeFiles/SampleApp.dir/main.cpp.o  -o SampleApp -Wl,-rpath,/home/pi/voice_control_rpi/simon/distribution/ifly/lib -rdynamic ../../../distribution/ifly/lib/libifly.so 

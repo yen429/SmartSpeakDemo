@@ -1,0 +1,1 @@
+sudo python3 demo_main.py --sdk_type DuerOs & node ./dcs-sdk-js/index.js 2>&1|tee DuerOs_log

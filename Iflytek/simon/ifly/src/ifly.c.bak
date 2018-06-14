@@ -1,0 +1,791 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
+#include <memory.h>
+#include "ifly.h"
+
+
+#define MY_FREE(x) {free(x); x=NULL}
+
+/** This table shall be same as enum IFLY_SERVICE_ID.
+ */
+typedef struct ifly_services {
+    const char *name;
+    IFLY_SERVICE_ID id;
+} ifly_services;
+
+static ifly_services g_ifly_services[] = {
+    {"musicX",       SERVICE_MUSICX},
+    {"weather",      SERVICE_WEATHER},
+    {"pm25",         SERVICE_PM25},
+    {"flight",       SERVICE_FLIGHT},
+    {"train",        SERVICE_TRAIN},
+    {"telephone",    SERVICE_TELEPHONE},
+    {"numberMaster", SERVICE_NUMBER_MASTER},
+    {"poetry",       SERVICE_POETRY},
+    {"story",        SERVICE_STORY},
+    {"joke",         SERVICE_JOKE},
+    {"radio",        SERVICE_RADIO},
+    {"news",         SERVICE_NEWS},
+    {"cookbook",     SERVICE_COOKBOOK},
+    {"chat",         SERVICE_CHAT},
+    {"calc",         SERVICE_CALC},
+    {"datetime",     SERVICE_DATETIME},
+    {"yhjg",         SERVICE_YHJG},
+    {"tcyl",         SERVICE_TCYL},
+    {"dataTransfer", SERVICE_DATA_TRANSFER},
+    {"llb",          SERVICE_LLB},
+    {"zdcx",         SERVICE_ZDCX},
+    {"mycx",         SERVICE_MYCX},
+    {"telephoneFee", SERVICE_TELEPHONE_FEE},
+    {"tccx",         SERVICE_TCCX},
+    {"dzfp",         SERVICE_DZFP},
+    {"robotAction",  SERVICE_ROBOT_ACTION},
+    {"cmd",          SERVICE_CMD},
+    {"dishOrder",    SERVICE_DISH_ORDER},
+    {"movie",        SERVICE_MOVIE},
+    {"live",         SERVICE_LIVE},
+};
+
+#define NUM_OF_SERVICES (sizeof (g_ifly_services) / sizeof (ifly_services))
+
+// enum for first level keys
+typedef enum {
+    KEY_RC = 0,
+    KEY_ERROR,
+    KEY_TEXT,
+    KEY_SERVICE,
+    KEY_OPERATION,
+    KEY_DATA,
+    KEY_ANSWER,
+} ENUM_RESPONSE_KEYS_ID;
+
+// first level keys
+char * response_keys[] = {
+    "rc",
+    "error",
+    "text",
+    "service",
+    "operation",
+    "data",
+    "answer",
+};
+#define NUM_OF_RESPONSE_KEYS (sizeof(response_keys) / sizeof(const char *));
+
+
+static ifly_data *g_list_root = NULL;
+static char *g_output_data = NULL;
+
+//#ifdef USE_CJSON
+//#endif //USE_CJSON
+#ifdef USE_RAPIDJSON
+static char *g_json_source = NULL;
+#endif //USE_RAPIDJSON
+
+
+bool mystrcat(char *addition)
+{
+    if (g_output_data == NULL) {
+        g_output_data = realloc(g_output_data, strlen(addition) + sizeof(char));
+    } else {
+        g_output_data = realloc(g_output_data, strlen(g_output_data) + strlen(addition) + sizeof(char));
+    }
+    if (!g_output_data) {
+        printf("[%s] pointer is null.", __FUNCTION__);
+        return false;
+    }
+    strcat(g_output_data, addition);
+    return true;
+}
+
+char *ifly_concat_strings(char *str, ...) {
+    va_list arguments;
+    unsigned int size = 0;
+    int i = 0;
+    char *concat_str = NULL;
+#if 0
+    /* Initializing arguments to store all values after num */
+    va_start (arguments, str);
+    /* Sum all the inputs; we still rely on the function caller to tell us how
+     * many there are */
+    while (str) {
+        int x = strlen(str);
+        printf("[%s] strlen=%d, %s", __FUNCTION__, x, str);
+        size += x;
+
+        str = va_arg(arguments, int);
+    }
+    va_end (arguments);                  // Cleans up the list
+#endif
+    concat_str = malloc(sizeof(char)*1024*1024*100);
+    va_start (arguments, str);
+
+    vsprintf(concat_str, str, arguments);
+    /*
+    while (str) {
+        strcat(concat_str, str);
+        printf("[%s] concat_str=%s", __FUNCTION__, concat_str);
+
+        str = va_arg(arguments, int);
+    }*/
+
+    va_end (arguments);                  // Cleans up the list
+
+    printf("[%s] concat_str=%s", __FUNCTION__, concat_str);
+
+    return concat_str;
+}
+
+#ifdef USE_RAPIDJSON
+/** This API is intend to check the response code which is returned by
+ * ifly server.
+ *
+ * @retval true valid
+ * @retval false invalid
+ */
+bool ifly_is_valid_response(Document document) {
+    //get 'rc' field
+    if (document.IsObject() == true) {
+        return (document["rc"].GetInt() == 0)?true:false;
+    } else if (document.IsArray() == true) {
+        int i = 0;
+        for (i = 0; i < document.Size(); i++) { //TODO: document,Size() should 1 always.
+           return (document[i]["rc"].GetInt() == 0)?true:false;
+        }
+    }
+    return false;
+}
+
+/** This API is intend to retrieve error information from response
+ * message.
+ *
+ * @return char* error string pointer.
+ */
+char *ifly_get_error_information(void) {
+    //TODO
+    return NULL;
+}
+
+/** This API is intend to retrieve original request from response
+ * message.
+ *
+ * @return char* requested text.
+ */
+char *ifly_get_requested_text(void) {
+    const cJSON *text = get_child_node_by_name(msg, response_keys[KEY_TEXT]);
+    if (text) {
+        return text->valuestring;
+    }
+    //get 'text' field
+    if (document.IsObject() == true) {
+        return document[response_keys[KEY_TEXT]].GetString();
+    } else if (document.IsArray() == true) {
+        int i = 0;
+        for (i = 0; i < document.Size(); i++) { //TODO: document,Size() should 1 always.
+           return document[i][response_keys[KEY_TEXT]].GetString().c_str();
+        }
+    }
+    return NULL;
+}
+#if 0
+IFLY_SERVICE_ID ifly_get_service_id(void) {
+    int i = 0;
+
+    for (i=0; i<NUM_OF_SERVICES; i++) {
+        if (!strcmp(name, g_ifly_services[i].name)) {
+            printf("[%s] service name %s is found!\n", __FUNCTION__, name);
+            return g_ifly_services[i].id;
+        }
+    }
+    return 0; //error case.
+}
+
+/** This API is intend to retrieve answered text from response
+ * message.
+ *
+ * @param msg the response message in JSON format.
+ * @return char* answered text.
+ */
+char *ifly_get_answered_text(void) {
+    const cJSON *answer = get_child_node_by_name(msg, response_keys[KEY_ANSWER]);
+    const cJSON *text = NULL;
+
+    if (answer) {
+        text = get_child_node_by_name(answer, "text");
+        return (text)?text->valuestring:NULL;
+    }
+    return NULL;
+}
+
+
+/** This API is intend to retrieve service id from response
+ * message. Check ifly spec. for more details.
+ *
+ * @param msg the response message in JSON format.
+ * @return char* service id.
+ */
+char *ifly_get_service_name(void) {
+    const cJSON *service = get_child_node_by_name(msg, response_keys[KEY_SERVICE]);
+    //printf("[%s] service id is %s\n", __FUNCTION__, (service)?(service->valuestring):"is NULL");
+    if (service) {
+        printf("[%s] service name is %s. service id is %d.\n", __FUNCTION__, (service)?(service->valuestring):"is NULL", ifly_get_service_id(service->valuestring));
+        return service->valuestring;
+    }
+    return NULL;
+}
+
+static void handle_joke(void) {
+    char *title = NULL;
+    char *content = NULL;
+    char *my_str = NULL;
+    int j = 0;
+
+    for (j=0; j<result_count; j++) {
+        printf("[%s](%d) string is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->string);
+        if (!strcmp(current_content->string, "content")) {
+            //printf("[%s](%d) content is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->valuestring);
+            content = current_content->valuestring;
+        } else if (!strcmp(current_content->string, "title")) {
+            //printf("[%s](%d) title is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->valuestring);
+            title = current_content->valuestring;
+        }
+        current_content = current_content->next;
+    }
+    //ifly_list_insert(title, content);
+    //my_str = ifly_concat_strings("%s %s", title, content);
+    //free(my_str);
+    mystrcat(title);
+    mystrcat(content);
+}
+
+typedef struct ifly_result_data {
+    char *key;
+    char *prefix;
+    char *result;
+} ifly_result_data;
+
+static void handle_weather(void) {
+    /*
+    char *air_quality = NULL;
+    char *city = NULL;
+    char *date = NULL;
+    char *humidity = NULL;
+    char *last_update_time = NULL;
+    char *pm25 = NULL;
+    char *temp_range = NULL;
+    char *weather = NULL;
+    char *wind = NULL;
+     */
+    ifly_result_data map[] = {
+        //{"airQuality", NULL},
+        {"city", NULL, NULL},
+        {"date", "日期:", NULL},
+        {"humidity", "濕度:", NULL},
+        //{"lastUpdateTime", "更新時間", NULL},
+        {"pm25", "PM2.5值:", NULL},
+        {"tempRange", "溫度:", NULL},
+        {"weather", "天氣狀況:", NULL},
+        {"wind", "風狀況:", NULL},
+    };
+
+    int j = 0;
+    int k = 0;
+    int map_size = sizeof(map) / sizeof(ifly_result_data);
+
+    for (j=0; j<result_count; j++) {
+        printf("[%s](%d) string is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->string);
+        for (k=0; k<map_size; k++) {
+            if (!strcmp(current_content->string, map[k].key)) {
+                map[k].result = current_content->valuestring;
+
+                printf("[%s](%d) value string is %s\n", __FUNCTION__, j, map[k].result);
+                break;
+            }
+        }
+
+        current_content = current_content->next;
+    }
+    //ifly_list_insert(title, content);
+    //my_str = ifly_concat_strings("%s %s", title, content);
+    //free(my_str);
+#if 1
+    for (k=0; k<map_size; k++) {
+        if (map[k].prefix != NULL) {
+            mystrcat(map[k].prefix);
+        }
+        if (map[k].result != NULL) {
+            mystrcat(map[k].result);
+        }
+    }
+#endif
+    //mystrcat(air_quality);
+}
+
+// type: joke,weather, etc.
+// result: result array pointer.
+void ifly_get_content(void) {
+    const cJSON *result = get_child_node_by_name(msg, response_keys[KEY_DATA])->child;
+    int i = 0;
+    int j = 0;
+    int count1 = cJSON_GetArraySize(result);
+    int count2 = cJSON_GetArraySize(result->child);
+    const cJSON *current;
+    const cJSON *current_content;
+    IFLY_SERVICE_ID id;
+
+    current = result->child; //point to result array[0] obj.
+    current_content = current->child; //point to result_array[0] content obj.
+
+    id = ifly_get_service_id(ifly_get_service_name(msg));
+
+    for (i=0; i<count1; i++) {
+        printf("[%s] count1 = %d count2=%d\n", __FUNCTION__, i, count2);
+        switch (id) {
+            case SERVICE_WEATHER:
+                handle_weather(count2, current_content);
+                break;
+            case SERVICE_JOKE:
+                handle_joke(count2, current_content);
+                break;
+        }
+        if (i < count1-1) {
+            current = current->next;
+            current_content = current->child;
+            count2 = cJSON_GetArraySize(current);
+        }
+    }
+    ifly_list_print(g_list_root);
+
+    ifly_list_free();
+
+    printf("[%s] concat_str=%s", __FUNCTION__, g_output_data);
+    free(g_output_data);
+}
+#endif
+//for test only
+void ifly_get_contents(const char *json) {
+
+    Document document;
+
+    g_json_source = (char*) malloc(strlen(json)+1);
+    strcpy(g_json_source, json, strlen(json));
+    if (document.ParseInsitu(g_json_source).HasParseError()) {
+        printf("[%s] document parsing error!", __FUNCTION__);
+        return 1;
+    }
+    //rc
+    printf("[%s] valid? %s\n", __FUNCTION__, (ifly_is_valid_response(document))?"true":"false");
+    //service
+    char *service_id = ifly_get_service_name(document);
+    printf("[%s] service is %s\n", __FUNCTION__, (service_id)?service_id:"is NULL");
+    //text
+    char *text = ifly_get_requested_text(document);
+    printf("[%s] text is %s\n", __FUNCTION__, (text)?text:"is NULL");
+    //answer
+    char *answer = ifly_get_answered_text(document);
+    printf("[%s] answer is %s\n", __FUNCTION__, (answer)?answer:"is NULL");
+    //data->result
+    ifly_get_content(document);
+
+    MY_FREE(g_json_source);
+}
+#endif //USE_RAPIDJSON
+
+#ifdef USE_CJSON
+/* name is one of following strings.
+ * 1. rc
+ * 2. error
+ * 3. text
+ * 4. service
+ * 5. operation
+ * 6. sematics
+ * 7. data
+ * 8. answer
+ * 9. search_semantic
+ * 10. dialog_stat
+ * 11. demand_semantic
+ * 12. orig_semantic
+ * 13. moreResults
+ *
+ */
+static const cJSON *get_child_node_by_name(const cJSON *msg, char *name) {
+    const cJSON *current = NULL;
+    const cJSON *find = NULL;
+
+    current = msg;
+    do {
+        // try to find 'data'
+        find = cJSON_GetObjectItem(current, name);
+        //printf(">>>> object with name=%s %s\n", name, (find == NULL)?" is NULL.":" found!");
+        if (find != NULL) {
+            break;
+        } else {
+            current = current->child;
+        }
+    } while (current != NULL);
+
+    return find;
+}
+
+static const cJSON *get_sibling_node_by_name(const cJSON *msg, char *name) {
+    const cJSON *current = NULL;
+    const cJSON *find = NULL;
+
+    current = msg;
+    do {
+        find = cJSON_GetObjectItem(current, name);
+        //printf(">>>> object with name=%s %s\n", name, (find == NULL)?" is NULL.":" found!");
+        if (find != NULL) {
+            break;
+        } else {
+            current = current->next;
+        }
+    } while (current != NULL);
+
+    return find;
+}
+
+/** This API is intend to check the response code which is returned by
+ * ifly server.
+ *
+ * @param response message in cJSON format.
+ * @retval true valid
+ * @retval false invalid
+ */
+bool ifly_is_valid_response(const cJSON *msg) {
+    const cJSON *rc = get_child_node_by_name(msg, response_keys[KEY_RC]);
+    if (rc) {
+        return (rc->valueint == 0)?true:false;
+    }
+    return false;
+}
+
+/** This API is intend to retrieve error information from response
+ * message.
+ *
+ * @param msg error information in cJSON format.
+ * @return char* error string pointer.
+ */
+char *ifly_get_error_information(const cJSON *error) {
+    //TODO
+    return NULL;
+}
+
+/** This API is intend to retrieve original request from response
+ * message.
+ *
+ * @param msg the response message in JSON format.
+ * @return char* requested text.
+ */
+char *ifly_get_requested_text(const cJSON *msg) {
+    const cJSON *text = get_child_node_by_name(msg, response_keys[KEY_TEXT]);
+    if (text) {
+        return text->valuestring;
+    }
+    return NULL;
+}
+
+IFLY_SERVICE_ID ifly_get_service_id(char *name) {
+    int i = 0;
+
+    for (i=0; i<NUM_OF_SERVICES; i++) {
+        if (!strcmp(name, g_ifly_services[i].name)) {
+            printf("[%s] service name %s is found!\n", __FUNCTION__, name);
+            return g_ifly_services[i].id;
+        }
+    }
+    return 0; //error case.
+}
+
+/** This API is intend to retrieve answered text from response
+ * message.
+ *
+ * @param msg the response message in JSON format.
+ * @return char* answered text.
+ */
+char *ifly_get_answered_text(const cJSON *msg) {
+    const cJSON *answer = get_child_node_by_name(msg, response_keys[KEY_ANSWER]);
+    const cJSON *text = NULL;
+
+    if (answer) {
+        text = get_child_node_by_name(answer, "text");
+        return (text)?text->valuestring:NULL;
+    }
+    return NULL;
+}
+
+
+/** This API is intend to retrieve service id from response
+ * message. Check ifly spec. for more details.
+ *
+ * @param msg the response message in JSON format.
+ * @return char* service id.
+ */
+char *ifly_get_service_name(const cJSON *msg) {
+    const cJSON *service = get_child_node_by_name(msg, response_keys[KEY_SERVICE]);
+    //printf("[%s] service id is %s\n", __FUNCTION__, (service)?(service->valuestring):"is NULL");
+    if (service) {
+        printf("[%s] service name is %s. service id is %d.\n", __FUNCTION__, (service)?(service->valuestring):"is NULL", ifly_get_service_id(service->valuestring));
+        return service->valuestring;
+    }
+    return NULL;
+}
+
+static void handle_joke(int result_count, const cJSON *current_content) {
+    char *title = NULL;
+    char *content = NULL;
+    char *my_str = NULL;
+    int j = 0;
+
+    for (j=0; j<result_count; j++) {
+        printf("[%s](%d) string is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->string);
+        if (!strcmp(current_content->string, "content")) {
+            //printf("[%s](%d) content is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->valuestring);
+            content = current_content->valuestring;
+        } else if (!strcmp(current_content->string, "title")) {
+            //printf("[%s](%d) title is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->valuestring);
+            title = current_content->valuestring;
+        }
+        current_content = current_content->next;
+    }
+    //ifly_list_insert(title, content);
+    //my_str = ifly_concat_strings("%s %s", title, content);
+    //free(my_str);
+    mystrcat(title);
+    mystrcat(content);
+}
+
+typedef struct ifly_result_data {
+    char *key;
+    char *prefix;
+    char *result;
+} ifly_result_data;
+
+static void handle_weather(int result_count, const cJSON *current_content) {
+    /*
+    char *air_quality = NULL;
+    char *city = NULL;
+    char *date = NULL;
+    char *humidity = NULL;
+    char *last_update_time = NULL;
+    char *pm25 = NULL;
+    char *temp_range = NULL;
+    char *weather = NULL;
+    char *wind = NULL;
+     */
+    ifly_result_data map[] = {
+        //{"airQuality", NULL},
+        {"city", NULL, NULL},
+        {"date", "日期:", NULL},
+        {"humidity", "濕度:", NULL},
+        //{"lastUpdateTime", "更新時間", NULL},
+        {"pm25", "PM2.5值:", NULL},
+        {"tempRange", "溫度:", NULL},
+        {"weather", "天氣狀況:", NULL},
+        {"wind", "風狀況:", NULL},
+    };
+
+    int j = 0;
+    int k = 0;
+    int map_size = sizeof(map) / sizeof(ifly_result_data);
+
+    for (j=0; j<result_count; j++) {
+        printf("[%s](%d) string is %s\n", __FUNCTION__, j, (current_content->string == NULL)?" is NULL.":current_content->string);
+        for (k=0; k<map_size; k++) {
+            if (!strcmp(current_content->string, map[k].key)) {
+                map[k].result = current_content->valuestring;
+
+                printf("[%s](%d) value string is %s\n", __FUNCTION__, j, map[k].result);
+                break;
+            }
+        }
+
+        current_content = current_content->next;
+    }
+    //ifly_list_insert(title, content);
+    //my_str = ifly_concat_strings("%s %s", title, content);
+    //free(my_str);
+#if 1
+    for (k=0; k<map_size; k++) {
+        if (map[k].prefix != NULL) {
+            mystrcat(map[k].prefix);
+        }
+        if (map[k].result != NULL) {
+            mystrcat(map[k].result);
+        }
+    }
+#endif
+    //mystrcat(air_quality);
+}
+
+// type: joke,weather, etc.
+// result: result array pointer.
+void ifly_get_content(const cJSON *msg) {
+    const cJSON *result = get_child_node_by_name(msg, response_keys[KEY_DATA])->child;
+    int i = 0;
+    int j = 0;
+    int count1 = cJSON_GetArraySize(result);
+    int count2 = cJSON_GetArraySize(result->child);
+    const cJSON *current;
+    const cJSON *current_content;
+    IFLY_SERVICE_ID id;
+
+    current = result->child; //point to result array[0] obj.
+    current_content = current->child; //point to result_array[0] content obj.
+
+    id = ifly_get_service_id(ifly_get_service_name(msg));
+
+    for (i=0; i<count1; i++) {
+        printf("[%s] count1 = %d count2=%d\n", __FUNCTION__, i, count2);
+        switch (id) {
+            case SERVICE_WEATHER:
+                handle_weather(count2, current_content);
+                break;
+            case SERVICE_JOKE:
+                handle_joke(count2, current_content);
+                break;
+        }
+        if (i < count1-1) {
+            current = current->next;
+            current_content = current->child;
+            count2 = cJSON_GetArraySize(current);
+        }
+    }
+    ifly_list_print(g_list_root);
+
+    ifly_list_free();
+
+    printf("[%s] concat_str=%s", __FUNCTION__, g_output_data);
+    free(g_output_data);
+}
+
+//for test only
+void ifly_get_contents(const cJSON *msg) {
+    const cJSON *current = NULL;
+
+
+    const cJSON *result_array = NULL;
+    /*
+    int i = 0;
+    for (i=0; i<count; i++) {
+        current = get_child_node_by_name(msg, response_keys[i]);
+        printf(">>>> obj with name=%s %s\n", response_keys[i], (current == NULL)?" is NULL.":" found!");
+    }*/
+
+
+    //rc
+    printf("[%s] valid? %s\n", __FUNCTION__, (ifly_is_valid_response(msg))?"true":"false");
+    //service
+    char *service_id = ifly_get_service_name(msg);
+    printf("[%s] service is %s\n", __FUNCTION__, (service_id)?service_id:"is NULL");
+    //text
+    char *text = ifly_get_requested_text(msg);
+    printf("[%s] text is %s\n", __FUNCTION__, (text)?text:"is NULL");
+    //answer
+    char *answer = ifly_get_answered_text(msg);
+    printf("[%s] answer is %s\n", __FUNCTION__, (answer)?answer:"is NULL");
+    //data->result
+    ifly_get_content(msg);
+}
+#endif // USE_CJSON
+
+void ifly_list_free(void) {
+    ifly_data *tmp;
+
+    while (g_list_root != NULL)
+    {
+        tmp = g_list_root;
+        g_list_root = g_list_root->next;
+        //printf("\n[%s] free %s %s\n", __FUNCTION__, tmp->title, tmp->content);
+        free(tmp);
+    }
+}
+
+void ifly_list_insert(char *title, char *content) {
+
+    ifly_data *current;
+
+    if (g_list_root == NULL) {
+        //printf("[%s] #1 title:%s content:%s\n", __FUNCTION__, title, content);
+        g_list_root = (ifly_data *)malloc(sizeof(*g_list_root));
+        g_list_root->next = NULL;
+        g_list_root->prev = NULL;
+        g_list_root->title = title;
+        g_list_root->content = content;
+    } else {
+        //printf("[%s] #2 title:%s content:%s\n", __FUNCTION__, title, content);
+        current = g_list_root;
+        // current is pointing to first element
+        // we iterate until we find the end
+        while(current->next != NULL) {
+            current = current->next;
+        }
+        // create a new ifly_data and insert the item
+        current->next = (ifly_data *)malloc(sizeof(ifly_data));
+        (current->next)->prev = current;
+        current = current->next;
+        current->title = title;
+        current->content = content;
+        current->next = NULL;
+    }
+}
+
+void ifly_list_delete(ifly_data *current, char *title, char *content){
+
+    // Iterate until we find a pointer next to the one we need to delete
+    while (current->next != NULL &&
+            !strcmp((current->next)->title, title) &&
+            !strcmp((current->next)->content, content)) {
+        current = current->next;
+    }
+
+    // Item is not found
+    if(current->next == NULL) {
+        printf("\nElement with title:%s \n", title);
+        printf("        with content:%s is not present in the list\n", content);
+        return;
+    }
+
+    // The element is found in the node next to the one that current points to
+    // We removed the node which is next to the pointer (which is also temp)
+    ifly_data *tmp = current->next;
+    // In special case that we are deleting last node
+    if(tmp->next == NULL) {
+        current->next = NULL;
+    } else {
+        current->next = tmp->next;
+        (current->next)->prev = tmp->prev;
+    }
+    tmp->prev = current;
+
+    // We got rid of the node, now time to dellocate the memory
+    free(tmp);
+
+    return;
+}
+void ifly_list_print(ifly_data *current) {
+    while(current != NULL) {
+        printf("\n[%s] title:%s\n", __FUNCTION__, current->title);
+        printf("[%s] content:%s\n", __FUNCTION__, current->content);
+        current = current->next;
+    }
+
+    //TODO serialize all node into one buffer.
+}
+
+bool ifly_list_find(ifly_data *current, char *title, char *content) {
+    // First pointer is head aka dummy node with no data
+    // so we go to next one
+    current = current->next;
+
+    // Iterate through the linked list
+    while(current != NULL) {
+        if (!strcmp(current->title, title) &&
+            !strcmp(current->content, content)) {
+            return true;
+        }
+        current = current->next;
+    }
+    return false;
+}
+

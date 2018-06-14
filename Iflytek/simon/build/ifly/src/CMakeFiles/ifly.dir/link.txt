@@ -1,0 +1,1 @@
+/usr/bin/c++  -fPIC  -march=native -Wall -Wextra -Werror -pthread  -shared -Wl,-soname,libifly.so -o ../../../distribution/ifly/lib/libifly.so CMakeFiles/ifly.dir/ifly.cpp.o 

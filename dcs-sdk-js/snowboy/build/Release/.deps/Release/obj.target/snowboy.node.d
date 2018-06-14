@@ -1,0 +1,1 @@
+cmd_Release/obj.target/snowboy.node := g++ -shared -pthread -rdynamic -Wl,--no-as-needed  -Wl,-soname=snowboy.node -o Release/obj.target/snowboy.node -Wl,--start-group Release/obj.target/snowboy/swig/Node/snowboy.o -Wl,--end-group -lcblas /home/pi/dueros-sdk/dcs-sdk-js/snowboy/lib/rpi/libsnowboy-detect.a

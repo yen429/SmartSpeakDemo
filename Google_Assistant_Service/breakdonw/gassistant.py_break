@@ -1,0 +1,82 @@
+from snowboy import snowboydecoder
+import sys
+import signal
+import time
+import logging
+from assistant import Assistant
+
+interrupted = False
+
+logging.basicConfig()
+logger = logging.getLogger("DAEMON")
+logger.setLevel(logging.DEBUG)
+
+if len(sys.argv) == 1:
+    logger.info("Error: need to specify model name")
+    logger.info("Usage: python demo.py your.model")
+    sys.exit(-1)
+
+def signal_handler(signal, frame):
+    global interrupted
+    interrupted = True
+
+
+def interrupt_callback():
+    global interrupted
+    return interrupted
+
+# capture SIGINT signal, e.g., Ctrl+C
+signal.signal(signal.SIGINT, signal_handler)
+
+class Controller(object):
+
+    def __init__(self):
+        self.model = sys.argv[1]
+        logger.info('snowboydecoder model = %s', self.model)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, etype, e, traceback):
+        if e:
+            return False
+
+    def init_snowboy_assistant(self):
+        self.detector = snowboydecoder.HotwordDetector(self.model, sensitivity=0.7)
+        self.assistant = Assistant()
+
+    # main loop
+    def start_detect_hotword(self):
+        def detect_callback():
+            self.detector.terminate()
+            snowboydecoder.play_audio_file(snowboydecoder.DETECT_DING)
+            self.assistant.assist()
+            restart = False
+            continue_dialog = True
+            try:
+                while continue_dialog:
+                    continue_dialog = False
+                    self.assistant.assist_recording()
+                    # This generator yields AssistResponse proto messages
+                    # received from the gRPC Google Assistant API.
+                    for resp in self.assistant.assistant.Assist(self.assistant.iter_assist_requests(),self.assistant.grpc_deadline):
+                        self.assistant.assist_playback(resp)
+                    logger.info('Finished playing assistant response.')
+                    self.conversation_stream.stop_playback()
+            except Exception as e:
+                self.assistant._create_assistant()
+                logger.info('Skipping because of connection reset')
+                restart = True
+            self.assistant.close_conversation_stream()
+            snowboydecoder.play_audio_file(snowboydecoder.DETECT_DONG)
+            logger.info('Listening... Press Ctrl+C to exit')
+            self.detector.start(detected_callback=detect_callback, interrupt_check=interrupt_callback, sleep_time=0.03)
+        
+        logger.info('Listening... Press Ctrl+C to exit')
+        self.detector.start(detected_callback=detect_callback,
+                   interrupt_check=interrupt_callback,
+                   sleep_time=0.03)
+
+with Controller() as controller:
+    controller.init_snowboy_assistant()
+    controller.start_detect_hotword()

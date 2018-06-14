@@ -1,0 +1,12 @@
+/home/pi/voice_control_rpi/simon/build/CMakeFiles/rebuild_cache.dir
+/home/pi/voice_control_rpi/simon/build/CMakeFiles/edit_cache.dir
+/home/pi/voice_control_rpi/simon/build/ifly/CMakeFiles/rebuild_cache.dir
+/home/pi/voice_control_rpi/simon/build/ifly/CMakeFiles/edit_cache.dir
+/home/pi/voice_control_rpi/simon/build/ifly/src/CMakeFiles/rebuild_cache.dir
+/home/pi/voice_control_rpi/simon/build/ifly/src/CMakeFiles/edit_cache.dir
+/home/pi/voice_control_rpi/simon/build/ifly/src/CMakeFiles/ifly.dir
+/home/pi/voice_control_rpi/simon/build/SampleApp/CMakeFiles/rebuild_cache.dir
+/home/pi/voice_control_rpi/simon/build/SampleApp/CMakeFiles/edit_cache.dir
+/home/pi/voice_control_rpi/simon/build/SampleApp/src/CMakeFiles/rebuild_cache.dir
+/home/pi/voice_control_rpi/simon/build/SampleApp/src/CMakeFiles/edit_cache.dir
+/home/pi/voice_control_rpi/simon/build/SampleApp/src/CMakeFiles/SampleApp.dir

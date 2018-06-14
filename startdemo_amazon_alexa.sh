@@ -1,0 +1,1 @@
+sudo python3 demo_main.py --sdk_type Amazon_Alexa & ./Amazon_Alexa/SampleApp_For_Pi3 "./Amazon_Alexa/AlexaClientSDKConfig.json" "./Amazon_Alexa/models" None

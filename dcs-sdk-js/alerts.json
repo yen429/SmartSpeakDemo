@@ -1,0 +1,15 @@
+[
+  {
+    "token": "eyJib3RfaWQiOiJhaS5kdWVyb3MuYm90LmFsYXJtIiwicmVzdWx0X3Rva2VuIjoiMWE1MTUzMjFhZDYxNWYxMDNjMzExNGExOWRkMGJhMjciLCJib3RfdG9rZW4iOiIxN2I0Njk3ZGNhMzg0In0=",
+    "type": "ALARM",
+    "time": 1527150900000,
+    "notify": true,
+    "payload": {
+      "assetPlayOrder": [],
+      "assets": [],
+      "scheduledTime": "2018-05-24T08:35:00+0000",
+      "token": "eyJib3RfaWQiOiJhaS5kdWVyb3MuYm90LmFsYXJtIiwicmVzdWx0X3Rva2VuIjoiMWE1MTUzMjFhZDYxNWYxMDNjMzExNGExOWRkMGJhMjciLCJib3RfdG9rZW4iOiIxN2I0Njk3ZGNhMzg0In0=",
+      "type": "ALARM"
+    }
+  }
+]
