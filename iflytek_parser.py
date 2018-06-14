@@ -13,7 +13,7 @@ import os
 import utils
 import requests
 
-def setListCardWidget(MainWindow,jsonData):
+def setListCardWidget(MainWindow,answerText,titleText):
     itemWidget = QtWidgets.QWidget(MainWindow)
     itemWidget.setContentsMargins(0, 0, 0, 0)
     itemLayout = QtWidgets.QVBoxLayout(itemWidget)
@@ -27,10 +27,10 @@ def setListCardWidget(MainWindow,jsonData):
     textBrowser.setStyleSheet(utils.LABEL_ROBOT_STYLE)
     textBrowser.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-    answerText = jsonData['address']
-    if "phone" in jsonData:
-        if jsonData['phone']:
-            answerText = answerText + " TEL:" + jsonData['phone']
+    #answerText = jsonData['address']
+    #if "phone" in jsonData:
+        #if jsonData['phone']:
+            #answerText = answerText + " TEL:" + jsonData['phone']
     textBrowser.setFont(utils.getGlobalTextFont())
     answerLabelTotalHeight = utils.calculateLabelHeight(textBrowser, answerText)
     print("answerLabelTotalHeight: %s"%(answerLabelTotalHeight))
@@ -44,7 +44,7 @@ def setListCardWidget(MainWindow,jsonData):
     textBrowserTitle.setStyleSheet(utils.LABEL_ROBOT_STYLE)
     textBrowserTitle.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     
-    titleText = jsonData['name']
+    #titleText = jsonData['name']
     textBrowserTitle.setFont(utils.getGlobalTitleFont())
     answerLabelTotalHeight2 = utils.calculateLabelHeight(textBrowserTitle, titleText)
     answerLabelTotalHeight = answerLabelTotalHeight + answerLabelTotalHeight2
@@ -57,7 +57,7 @@ def setListCardWidget(MainWindow,jsonData):
     return itemWidget,answerLabelTotalHeight
 
 
-def setListImagedWidget(MainWindow,jsonData):
+def setListImagedWidget(MainWindow,answerText,titleText,url):
     allWidget = QtWidgets.QWidget(MainWindow)
     itemWidget = QtWidgets.QWidget(MainWindow)
     itemWidget.setContentsMargins(0, 0, 0, 0)
@@ -70,10 +70,10 @@ def setListImagedWidget(MainWindow,jsonData):
     itemLabel.setStyleSheet(utils.LABEL_ROBOT_STYLE)
     itemLabel.setWordWrap(True)
     
-    answerText = jsonData['address']
-    if "phone" in jsonData:
-        if jsonData['phone']:
-            answerText = answerText + " TEL:" + jsonData['phone']
+    #answerText = jsonData['address']
+    #if "phone" in jsonData:
+        #if jsonData['phone']:
+            #answerText = answerText + " TEL:" + jsonData['phone']
     itemLabel.setFont(utils.getGlobalTextFont())
     answerLabelTotalHeight1 = utils.calculateLabelHeight(itemLabel, answerText)
     print("answerLabelTotalHeight1: %s"%(answerLabelTotalHeight1))
@@ -86,7 +86,7 @@ def setListImagedWidget(MainWindow,jsonData):
     itemLabelTitle.setWordWrap(True)
     
     #titleText="text"
-    titleText = jsonData['name']
+    #titleText = jsonData['name']
     itemLabelTitle.setFont(utils.getGlobalTitleFont())
     #itemLabelTitle.setGeometry(utils.LABEL_MAX_WIDTH, answerLabelTotalHeight, utils.LABEL_MAX_WIDTH, answerLabelTotalHeight)
     answerLabelTotalHeight2 = utils.calculateLabelHeight(itemLabelTitle, titleText)
@@ -101,7 +101,7 @@ def setListImagedWidget(MainWindow,jsonData):
     #itemImageLabel.setGeometry(0, 0, 10, 10)
     itemImageLabel.setScaledContents(True)
 
-    url=jsonData['img']
+    #url=jsonData['img']
     fileName = os.path.basename(url)
     filePath = "%s/%s"%(os.getcwd(), fileName)
 
@@ -137,25 +137,33 @@ def setListWidget(MainWindow,jsonData):
     answerlistWidget = QtWidgets.QWidget(MainWindow)
     vbox = QVBoxLayout(answerlistWidget)
     list = jsonData.get('data',  'NA').get('result')
+    service = jsonData.get('service','NA')
     answerItemTotalHeight = 0
     j = 0
-    print(list)
-    #tempWidget1,answerItemTotalHeight1 = setListCardWidget(answerlistWidget,list[0])
-    #tempWidget2,answerItemTotalHeight2 = setListCardWidget(answerlistWidget,list[1])
-    #tempWidget3,answerItemTotalHeight3 = setListCardWidget(answerlistWidget,list[2])
-    #for i in (list[0],list[1],list[2]):
+    if "LEIQIAO.historyToday" in service:
+        answerItem,answerItemTotalHeight0 = setTextWidget(MainWindow,jsonData)
+        answerItemTotalHeight = answerItemTotalHeight + answerItemTotalHeight0
+        vbox.addWidget(answerItem)
     for i in list:
         j = j +1
-        if j< 4:
-            if "img" in i:
-                if i['img']:
-                    tempWidget,answerItemTotalHeight_i = setListImagedWidget(answerlistWidget,i)
-                else:
-                    tempWidget,answerItemTotalHeight_i = setListCardWidget(answerlistWidget,i)
-            else:
-                tempWidget,answerItemTotalHeight_i = setListCardWidget(answerlistWidget,i)
-            answerItemTotalHeight = answerItemTotalHeight_i + answerItemTotalHeight
-            vbox.addWidget(tempWidget)
+        if j< 3:
+            if ("hotelSearch" in service) or ("parkingLot" in service):
+                    answerText = i['address']
+                    if "phone" in i:
+                        if i['phone']:
+                            answerText = answerText + " TEL:" + i['phone']
+                    titleText = i['name']
+                    if "img" in i:
+                        url = i['img']
+                        if url:
+                            tempWidget,answerItemTotalHeight_i = setListImagedWidget(answerlistWidget,answerText,titleText,url)
+                        else:
+                            tempWidget,answerItemTotalHeight_i = setListCardWidget(answerlistWidget,answerText,titleText)
+                    else:
+                        tempWidget,answerItemTotalHeight_i = setListCardWidget(answerlistWidget,answerText,titleText)
+                        
+                    answerItemTotalHeight = answerItemTotalHeight_i + answerItemTotalHeight
+                    vbox.addWidget(tempWidget)
 
     return answerlistWidget,answerItemTotalHeight
     
@@ -231,20 +239,31 @@ def parseRespondData(MainWindow,jsonData):
         service = jsonData.get('service','NA')
         print(service)
         if ("AIUI.cyclopedia" in service) or ("baike" in service):
-            print("a")
             try:
-                url_text = jsonData.get('data','NA').get('result')
-                url=url_text[0]['img']
+                result = jsonData.get('data','NA').get('result')
+                url=result[0]['img']
                 itemWidget,answerItemTotalHeight = setTextImgWidget(MainWindow,jsonData,url)
             except:
                 itemWidget,answerItemTotalHeight = setTextWidget(MainWindow,jsonData)
         elif "englishEveryday" in service:
             try:
-                url_text = jsonData.get('data','NA').get('result')
-                url=url_text[0]['imgUrl']
+                result = jsonData.get('data','NA').get('result')
+                url=result[0]['imgUrl']
                 itemWidget,answerItemTotalHeight = setTextImgWidget(MainWindow,jsonData,url)
             except:
                 itemWidget,answerItemTotalHeight = setTextWidget(MainWindow,jsonData)
-        elif ("hotelSearch" in service) or ("parkingLot" in service):
-            itemWidget,answerItemTotalHeight = setListWidget(MainWindow,jsonData)
+        elif ("hotelSearch" in service) or ("parkingLot" in service) or ("LEIQIAO.historyToday" in service):                
+                itemWidget,answerItemTotalHeight = setListWidget(MainWindow,jsonData)
+        elif ("crossTalk" in service) or ("drama" in service):
+            try:
+                result = jsonData.get('data','NA').get('result')
+                titleText = jsonData['answer']['text']
+                answerText = result[0]['actor'] + " " + result[0]['album']
+                itemWidget,answerItemTotalHeight = setListCardWidget(MainWindow,answerText,titleText)
+            except:
+                itemWidget,answerItemTotalHeight = setTextWidget(MainWindow,jsonData)
+        else:
+            itemWidget,answerItemTotalHeight = setTextWidget(MainWindow,jsonData)
+            
+                
     return itemWidget,answerItemTotalHeight

@@ -237,9 +237,9 @@ class MainUiWindow(QtCore.QObject):
     #for Iflytek
     def preProcessData(self,data):
         if "JSON:" in data:
-        	result = json.loads(data[5:])
-        	self.addAskItem(result["text"])
-        	self.addAnswerItemForIflytek(result)
+            result = json.loads(data[5:])
+            self.addAskItem(result["text"])
+            self.addAnswerItemForIflytek(result)
         else:
             state = "Online"
             if "IDLE_STATE" in data:
@@ -640,13 +640,13 @@ class MainUiWindow(QtCore.QObject):
         self.listWidget.scrollToBottom()
 
     def addAnswerItemForIflytek(self,result):
-    	if "answer" in result:
-    		if "service" in result:
-    			self.addAnswerItemIflytek(result)
-    		else:
-    			self.addAnswerItem(result['answer']['text'])
-    	else:
-    		self.addAnswerItem("")
+        if "answer" in result:
+            if "service" in result:
+                self.addAnswerItemIflytek(result)
+            else:
+                self.addAnswerItem(result['answer']['text'])
+        else:
+            self.addAnswerItem("")
         
     class StateObserverThread(QThread):
         _state_signal = pyqtSignal()
