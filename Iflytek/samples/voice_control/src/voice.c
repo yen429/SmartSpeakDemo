@@ -288,8 +288,18 @@ static int text_to_speech(const char* src_text)
 			snd_pcm_prepare(voice.pcm_playback_handle);
 			if(voice.state_machine == SPEAK_STATE)
 			{
-				voice.state_machine = IDLE_STATE;
-				fifo_write(voice_control_fd, "IDLE_STATE\n" ,strlen("IDLE_STATE\n"));
+				// if sessionIsEnd = 0 enter to listen state
+				// else is sessionIsEnd = 1 enter to idle state
+				if (voice.sessionIsEnd  == 1)
+				{
+					voice.state_machine = IDLE_STATE;
+					fifo_write(voice_control_fd, "IDLE_STATE\n" ,strlen("IDLE_STATE\n"));
+				}
+				else
+				{
+					voice.state_machine = LISTEN_STATE;
+					fifo_write(voice_control_fd, "LISTEN_STATE\n" ,strlen("LISTEN_STATE\n"));
+				}
 			}
 			INFO_MSG("text_to_speech end!!\n");
 			break;
@@ -670,7 +680,12 @@ void *speech_awake_th(void *param)
 	
 	while(1)
 	{
-		if(voice.state_machine == IDLE_STATE || voice.state_machine == SPEAK_STATE)
+		if(voice.sessionIsEnd == 0)
+		{
+			DEBUG_MSG("stop wakeup word (session is not end)\n");
+			usleep(150*1000);
+		}
+		else if(voice.state_machine == IDLE_STATE || voice.state_machine == SPEAK_STATE)
 		{
 			DEBUG_MSG("start wakeup word\n");
 			speech_awake();
@@ -766,6 +781,37 @@ void alarm_parse(const char *jason)
 	}
 }
 
+void session_parse(const char *jason)
+{
+	//Check is "sessionIsEnd" result
+	char session_jason[4096]={0};
+	char *pch;
+	strncpy(session_jason, jason, sizeof(session_jason)-1);
+	
+	pch = strstr((char *)session_jason, "sessionIsEnd");
+	if(pch != NULL)
+	{
+		INFO_MSG("Get session result\n");
+		pch = strstr((char *)session_jason, "\"sessionIsEnd\":\"false\"");
+		if(pch != NULL)
+		{
+			INFO_MSG("sessionIsEnd = 0\n");
+			voice.sessionIsEnd = 0;
+		}
+		else
+		{
+			INFO_MSG("sessionIsEnd = 1\n");
+			voice.sessionIsEnd = 1;
+		}
+		
+	}
+	else
+	{
+		INFO_MSG("No session result, sessionIsEnd = 1\n");
+		voice.sessionIsEnd = 1;
+	}
+}
+
 /*
  * 功能：语音控制、语音聊天
  * 参数：无
@@ -829,6 +875,10 @@ static int voice_chat_and_control(void)
 			}
 			else
 			{
+				//Parse answer jason to check sessionIsEnd tag
+				// False --> don't enable the awake word
+				// True --> enable the awake word
+				session_parse(voice.answer_jason);
 				voice.state_machine = SPEAK_STATE;
 				fifo_write(voice_control_fd, "SPEAK_STATE\n" ,strlen("SPEAK_STATE\n"));
 			}
@@ -925,6 +975,7 @@ int start_voice_recognition()
 	
 	start_speech_awake();
 	
+	voice.sessionIsEnd = 1;
 	voice.state_machine = IDLE_STATE;
 	fifo_write(voice_control_fd, "IDLE_STATE\n" ,strlen("IDLE_STATE\n"));
 	

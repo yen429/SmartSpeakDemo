@@ -75,6 +75,7 @@ typedef struct {
     char xfyun_appid[XFYUN_APPID_LEN];                         //科大讯飞提供的树莓派开发包的appid; （字符串长度暂定）
 	char usb_audio_addr[USB_AUDIO_ADDR_LEN];                   //USB声卡的地址信息（字符串长度暂定）
 	int state_machine;
+	int sessionIsEnd;
 	snd_pcm_t* pcm_playback_handle;
 	snd_pcm_t* pcm_capture_handle;
 }Voice;
