@@ -788,6 +788,15 @@ void session_parse(const char *jason)
 	char *pch;
 	strncpy(session_jason, jason, sizeof(session_jason)-1);
 	
+	// Special case for "AIUI.cyclopedia", this will return sessionIsEnd:false, 
+	// but we don't keep the session state, so we need modify this case, to enable interrupt speak state!! 
+	pch = strstr((char *)session_jason, "AIUI.cyclopedia");
+	if(pch != NULL)
+	{
+		voice.sessionIsEnd = 1;
+		return;
+	}
+	
 	pch = strstr((char *)session_jason, "sessionIsEnd");
 	if(pch != NULL)
 	{
