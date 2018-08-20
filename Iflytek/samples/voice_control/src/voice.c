@@ -306,6 +306,7 @@ static int text_to_speech(const char* src_text)
 		}
 	}
 	/* 合成完毕 */
+
 	ret = QTTSSessionEnd(sessionID, "Normal");
 	if (MSP_SUCCESS != ret)
 	{
@@ -313,8 +314,6 @@ static int text_to_speech(const char* src_text)
 	}
 	free(buffer);
 	free(pcm_all);
-	
-
 	
 	return ret;
 }
@@ -781,6 +780,49 @@ void alarm_parse(const char *jason)
 	}
 }
 
+void animal_sound_parse(const char *jason)
+{
+	
+	char alarm_jason[4096]={0};
+	char download_animal_sound_file[256]={0};
+	char * pch;
+	char * sound_url;
+	int count=0;
+	
+	strncpy(alarm_jason, jason, sizeof(alarm_jason)-1);
+	
+	//Check is "animalCries" result
+	pch = strstr((char *)alarm_jason, "animalCries");
+	if(pch != NULL)
+	{
+		INFO_MSG("Get animal sound result\n");
+		pch = strstr((char*)alarm_jason, "url");
+		if(pch != NULL)
+		{
+			sound_url = strtok (pch," \\\"");
+			while(count < 3)
+			{
+				INFO_MSG("%s\n",sound_url);
+				if(count == 2)
+				{
+					// Get Animals sound url, use wget to download
+					INFO_MSG("==>%s\n",sound_url);
+					snprintf ( download_animal_sound_file, sizeof(download_animal_sound_file), "wget %s -O ./wav/animal_sound.mp3", sound_url);
+					INFO_MSG("==>%s\n",download_animal_sound_file);
+					system(download_animal_sound_file);
+					voice.service = ANIMAL_SOUND_SERVICE;
+				}
+				sound_url = strtok (NULL," \\\"");
+				count++;
+			}
+		}
+	}
+	else
+	{
+		INFO_MSG("This is not animal sound result\n");
+	}
+}
+
 void session_parse(const char *jason)
 {
 	//Check is "sessionIsEnd" result
@@ -913,8 +955,13 @@ static int voice_chat_and_control(void)
 			snprintf( ans_fifo, sizeof( ans_fifo )-1, "JSON:%s\n",voice.answer_jason);
 			fifo_write(voice_control_fd ,ans_fifo, strlen(ans_fifo));
 			
+			voice.service = DEFAULT_SERVICE;
+			
 			//Parser Alarm
 			alarm_parse(voice.answer_jason);
+			
+			//Parser Animals sound
+			animal_sound_parse(voice.answer_jason);
 			
 			//Parser Jason
 			voice.answer_text = ifly_get_contents(voice.answer_jason);
@@ -942,6 +989,13 @@ static int voice_chat_and_control(void)
 				{
 					ERROR_MSG("Text to speech error\n");
 					return -1;
+				}
+				
+				//Check the service is animal sound
+				if(voice.service == ANIMAL_SOUND_SERVICE)
+				{
+					INFO_MSG("Play animal sound\n");
+					system("mpg123 ./wav/animal_sound.mp3");
 				}
 			}
 			INFO_MSG("Voice Control Finish\n");

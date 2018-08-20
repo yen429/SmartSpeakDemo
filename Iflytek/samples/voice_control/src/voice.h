@@ -57,6 +57,10 @@
 #define THINK_STATE    0x03
 #define SPEAK_STATE 0x04
 
+//Service Define
+#define DEFAULT_SERVICE 0x00
+#define ANIMAL_SOUND_SERVICE  0x01
+
 typedef struct {
 	int voice_main_switch;                       //声音总开关（如果语音初始化失败，则为关闭状态！）
 	int recongnition_switch;                     //标识当前是否打开语音识别 （高）
@@ -78,6 +82,7 @@ typedef struct {
 	int sessionIsEnd;
 	snd_pcm_t* pcm_playback_handle;
 	snd_pcm_t* pcm_capture_handle;
+	int service;
 }Voice;
 
 /*
